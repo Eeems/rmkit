@@ -894,9 +894,10 @@ namespace framebuffer:
       pass
 
 #ifdef RMKIT_FBINK
-  class FBInk: public RemarkableFB:
+  class FBInk: public HardwareFB:
     public:
     FBInkConfig config_ = {0}
+    FBInkState state_ = {0}
     FBInk():
       self.fd = fbink_open()
       fbink_init(self.fd, &config_)
@@ -916,12 +917,31 @@ namespace framebuffer:
         fbink_refresh(self.fd,
           dirty_area.y0,
           dirty_area.x0,
-          dirty_area.x1 - dirty_area.x0,
-          dirty_area.y1 - dirty_area.y0,
+          std::min(dirty_area.x1 - dirty_area.x0, self.display_width-1),
+          std::min(dirty_area.y1 - dirty_area.y0, self.height-1),
           &config_)
       else:
         fbink_refresh(self.fd, 0, 0, self.display_width, self.height, &config_)
       return 0
+
+    void wait_for_redraw(uint32_t update_marker):
+      fbink_wait_for_complete(self.fd, update_marker);
+
+    tuple<int, int> get_display_size():
+      fbink_get_state(&config_, &state_)
+      return state_.view_width, state_.view_height
+
+    tuple<int, int> get_virtual_size():
+      fbink_get_state(&config_, &state_)
+      return (state_.scanline_stride / (state_.bpp / 8)), state_.screen_height
+
+    int get_screen_depth():
+      fbink_get_state(&config_, &state_)
+      return state_.bpp
+
+    void set_screen_depth(int d):
+      fbink_get_state(&config_, &state_)
+      _ := fbink_set_fb_info(self.fd, state_.current_rota, d, true, &config_);
 #endif
 
   class MtkFB: public RemarkableFB:
