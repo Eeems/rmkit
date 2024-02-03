@@ -906,6 +906,10 @@ namespace framebuffer:
       FB::init()
       self.fbmem = self.allocate_memory(self.byte_size)
 
+      #ifndef FB_NO_INIT_BPP
+      set_screen_depth(sizeof(remarkable_color)*8)
+      #endif
+
     remarkable_color* allocate_memory(int):
       size_t size
       mem := (remarkable_color*) fbink_get_fb_pointer(self.fd, &size)
@@ -933,15 +937,16 @@ namespace framebuffer:
 
     tuple<int, int> get_virtual_size():
       fbink_get_state(&config_, &state_)
-      return (state_.scanline_stride / (state_.bpp / 8)), state_.screen_height
+      return ((state_.scanline_stride << 3U) / state_.bpp), state_.screen_height
 
     int get_screen_depth():
       fbink_get_state(&config_, &state_)
       return state_.bpp
 
     void set_screen_depth(int d):
+      debug "SETTING SCREEN DEPTH", d
       fbink_get_state(&config_, &state_)
-      _ := fbink_set_fb_info(self.fd, state_.current_rota, d, true, &config_);
+      ret := fbink_set_fb_info(self.fd, state_.current_rota, d, true, &config_);
 #endif
 
   class MtkFB: public RemarkableFB:
